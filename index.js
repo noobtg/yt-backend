@@ -1,36 +1,42 @@
-import express from "express";
-import fetch from "node-fetch";
-
-const app = express();
-
-app.get("/", (req, res) => {
-  res.send("Backend running");
-});
-
 app.get("/search", async (req, res) => {
   const q = req.query.q;
 
-  const response = await fetch(
-    "https://music.youtube.com/youtubei/v1/search",
+  const response = await axios.post(
+    "https://music.youtube.com/youtubei/v1/search?key=AIzaSy...",
     {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        context: {
-          client: {
-            clientName: "WEB_REMIX",
-            clientVersion: "1.20240101.01.00"
-          }
-        },
-        query: q
-      })
+      query: q,
+      context: {
+        client: {
+          clientName: "WEB_REMIX",
+          clientVersion: "1.20240401.01.00"
+        }
+      }
     }
   );
 
-  const data = await response.json();
-  res.json(data);
-});
+  const items =
+    response.data.contents.tabbedSearchResultsRenderer.tabs[0]
+      .tabRenderer.content.sectionListRenderer.contents;
 
-app.listen(3000, () => console.log("Server running"));
+  let songs = [];
+
+  items.forEach(section => {
+    const contents =
+      section.musicShelfRenderer?.contents || [];
+
+    contents.forEach(item => {
+      const data = item.musicResponsiveListItemRenderer;
+      if (!data) return;
+
+      const title = data.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].text;
+      const artist = data.flexColumns[1].musicResponsiveListItemFlexColumnRenderer.text.runs[0].text;
+
+      songs.push({
+        title,
+        artist
+      });
+    });
+  });
+
+  res.json(songs);
+});
