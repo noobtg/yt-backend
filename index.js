@@ -1,5 +1,5 @@
 import express from "express";
-import fetch from "node-fetch";
+import https from "https";
 
 const app = express();
 
@@ -7,31 +7,40 @@ app.get("/", (req, res) => {
   res.send("Backend running");
 });
 
-app.get("/search", async (req, res) => {
+app.get("/search", (req, res) => {
   try {
     const query = req.query.q;
 
-    if (!query) {
-      return res.json([]);
-    }
+    if (!query) return res.json([]);
 
-    const url =
-      "https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=" +
-      encodeURIComponent(query);
+    const url = `https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=${encodeURIComponent(
+      query
+    )}`;
 
-    const response = await fetch(url);
-    const data = await response.json();
+    https.get(url, (response) => {
+      let data = "";
 
-    const results = data[1].map((item, index) => ({
-      id: index,
-      title: item,
-      url: `https://www.youtube.com/results?search_query=${item}`,
-    }));
+      response.on("data", (chunk) => {
+        data += chunk;
+      });
 
-    res.json(results);
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ error: "Failed to fetch" });
+      response.on("end", () => {
+        const json = JSON.parse(data);
+
+        const results = json[1].map((item, i) => ({
+          id: i,
+          title: item,
+          url: `https://youtube.com/results?search_query=${encodeURIComponent(
+            item
+          )}`,
+        }));
+
+        res.json(results);
+      });
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed" });
   }
 });
 
