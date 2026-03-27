@@ -1,8 +1,7 @@
-const express = require("express");
-const axios = require("axios");
+import express from "express";
+import fetch from "node-fetch";
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 app.get("/", (req, res) => {
   res.send("Backend running");
@@ -12,27 +11,32 @@ app.get("/search", async (req, res) => {
   try {
     const query = req.query.q;
 
-    const response = await axios.get(
-      `https://ytsearcher.vercel.app/api/search?q=${query}`
-    );
+    if (!query) {
+      return res.json([]);
+    }
 
-    const results = response.data.results || [];
+    const url =
+      "https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=" +
+      encodeURIComponent(query);
 
-    const songs = results.map((item, index) => ({
-      id: index + 1,
-      title: item.title,
-      artist: item.channel?.name || "Unknown",
-      thumbnail: item.thumbnail,
-      url: item.url
+    const response = await fetch(url);
+    const data = await response.json();
+
+    const results = data[1].map((item, index) => ({
+      id: index,
+      title: item,
+      url: `https://www.youtube.com/results?search_query=${item}`,
     }));
 
-    res.json(songs);
+    res.json(results);
   } catch (error) {
-    console.log(error.message);
-    res.status(500).json({ error: "Failed to fetch songs" });
+    console.log(error);
+    res.status(500).json({ error: "Failed to fetch" });
   }
 });
 
+const PORT = process.env.PORT || 8080;
+
 app.listen(PORT, () => {
-  console.log("Server running on port", PORT);
+  console.log("Server running on port " + PORT);
 });
